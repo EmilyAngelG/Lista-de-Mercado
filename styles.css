@@ -1,0 +1,56 @@
+:root{
+  --bg:#fbfbfc;
+  --card:#ffffff;
+  --muted:#6b7280;
+  --accent:#FF7A00; /* laranja */
+  --green:#2E8B57;
+  --red:#E03A3A;
+  --shadow:0 6px 18px rgba(16,24,40,0.06);
+}
+*{box-sizing:border-box}
+body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#111;background:var(--bg);margin:0}
+.app-header{padding:16px}
+.app-header h1{margin:0;font-size:20px}
+.subtitle{margin:4px 0 0;color:var(--muted);font-size:13px}
+.list{padding:12px 12px 96px}
+.card{background:var(--card);border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:var(--shadow);position:relative;overflow:hidden;touch-action:none}
+.card .title{font-weight:600;margin-bottom:8px}
+.card .img-wrap{height:120px;background:#f4f4f6;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px}
+.card .img-wrap img{max-width:100%;height:100%;object-fit:cover}
+.card .fields{display:flex;flex-direction:column;align-items:center}
+.row{display:flex;gap:8px;width:100%;align-items:center}
+.field{display:flex;flex-direction:column;align-items:center;min-width:80px}
+.field input{width:120px;padding:8px;border-radius:8px;border:1px solid #e6e6e9;text-align:center}
+.field .label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.totalItem{margin-top:8px;font-weight:700}
+
+/* bottom bar */
+.bottom-bar{position:fixed;left:0;right:0;bottom:0;height:64px;background:#fff;border-top:1px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;gap:12px}
+.circle-add{width:48px;height:48px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:26px;display:flex;align-items:center;justify-content:center}
+.compare-value{flex:1;text-align:center;font-weight:700}
+.compare-value.orange{color:var(--accent)}
+.total-value{min-width:120px;text-align:right;font-weight:800;color:var(--accent);font-size:18px}
+.total-value.green{color:var(--green)}
+.total-value.red{color:var(--red)}
+
+/* end-add button */
+.end-add{position:sticky;display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#eee;color:#333;margin:8px auto 24px;font-size:28px}
+
+/* modal */
+.modal{position:fixed;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.4)}
+.modal.hidden{display:none}
+.modal-content{background:#fff;padding:18px;border-radius:12px;max-width:90%;width:360px;position:relative}
+.modal-content.small{width:320px}
+.modal-close{position:absolute;right:8px;top:8px;border:none;background:transparent;font-size:18px}
+.btn{padding:10px 12px;border-radius:8px;border:1px solid #ddd;background:#fff}
+.btn.primary{background:var(--accent);color:#fff;border:none}
+.btn.danger{background:var(--red);color:#fff;border:none}
+
+/* drag-delete background */
+.card.delete-back{background:linear-gradient(90deg, rgba(224,58,58,0.12), rgba(224,58,58,0.06));}
+.card .delete-x{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:22px;color:var(--red);opacity:0}
+.card.show-x .delete-x{opacity:1}
+
+@media(min-width:900px){
+  .list{max-width:720px;margin:0 auto}
+}
