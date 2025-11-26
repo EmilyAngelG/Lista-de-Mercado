@@ -1,0 +1,573 @@
+
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lista de Mercado — Responsiva</title>
+  <style>
+    /* Variáveis / temas */
+    :root{
+      --bg: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #ff8a00; /* laranja */
+      --green: #2ecc71;
+      --red: #e74c3c;
+      --card: #f8fafc;
+      --shadow: 0 6px 18px rgba(31,41,55,0.08);
+      --radius: 12px;
+      --gap: 12px;
+      --max-width: 980px;
+      --mobile-break: 820px;
+      --desktop-font: 16px;
+    }
+
+    /* Dark mode support (opt-in) */
+    .dark{
+      --bg: #0b1220;
+      --text: #e6eef8;
+      --muted: #9aa8bf;
+      --card: #071029;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, Roboto, system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial;color:var(--text);background:var(--bg)}
+    .app{max-width:var(--max-width);margin:18px auto;padding-bottom:120px}
+
+    h1{font-size:18px;margin:0 0 8px}
+    p.small{color:var(--muted);margin:0 0 16px;font-size:13px}
+
+    /* Lista */
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:var(--card);box-shadow:var(--shadow);position:relative;overflow:hidden}
+
+    /* bloco esquerdo (nome + imagem + unidadeMedida) */
+    .left-block{display:flex;flex-direction:column;align-items:center;min-width:92px;max-width:130px;text-align:center}
+    .prod-name{font-weight:600;font-size:14px;margin-bottom:6px}
+    .prod-img{width:84px;height:84px;border-radius:8px;object-fit:cover;background:#fff;border:1px dashed #e2e8f0}
+    .unit-label{font-size:13px;color:var(--muted);margin-top:6px}
+
+    /* campos numéricos e preços */
+    .field{display:flex;flex-direction:column;align-items:flex-start}
+    .field input{width:110px;padding:8px;border-radius:8px;border:1px solid #e6edf3;background:white}
+    .field input[type="number"]{-moz-appearance:textfield}
+    .money{font-variant-numeric:tabular-nums}
+
+    .right-fields{display:flex;gap:12px;align-items:center;margin-left:auto}
+
+    .item-total{min-width:96px;text-align:right;font-weight:700}
+
+    /* Buttons */
+    .btn{cursor:pointer;border:0;padding:8px 12px;border-radius:8px;background:var(--accent);color:white;font-weight:600}
+    .icon-btn{width:44px;height:44px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center}
+
+    /* Sticky totals footer (mobile) */
+    .totals-bottom{position:fixed;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;z-index:60}
+    .totals-card{background:var(--card);padding:10px;border-radius:12px;box-shadow:var(--shadow);display:flex;gap:8px;align-items:center}
+    .grand-total{font-size:18px;font-weight:800;color:var(--accent);cursor:pointer;user-select:none}
+    .compare-value{font-size:14px;color:var(--accent);opacity:0.95}
+
+    /* Desktop: stacked controls right side */
+    @media(min-width:821px){
+      .app{display:flex;gap:20px}
+      .controls-right{width:220px;display:flex;flex-direction:column;gap:12px;position:sticky;top:18px;height:fit-content}
+      .main-col{flex:1}
+      .totals-bottom{position:static;display:block}
+      .sticky-footer-hidden{display:none}
+      .left-block{min-width:140px}
+      .prod-name{font-size:16px}
+      .unit-label{font-size:14px}
+      .field input{width:140px}
+      .item-total{font-size:16px}
+    }
+
+    /* Swipe delete overlay */
+    .swipe-delete{position:absolute;right:0;top:0;bottom:0;width:72px;background:var(--red);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+
+    /* small helper */
+    .muted{color:var(--muted);font-size:13px}
+
+    /* focus outline accessibility */
+    input:focus, button:focus{outline:3px solid rgba(34,197,94,0.16);outline-offset:2px}
+
+    /* transition for color changes */
+    .grand-total{transition:color 260ms ease, transform 180ms}
+
+    /* Tooltip */
+    .tooltip{position:relative}
+    .tooltip .tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#1f2937;color:white;padding:8px;border-radius:8px;font-size:12px;white-space:nowrap;display:none}
+    .tooltip:hover .tip{display:block}
+
+    /* delete context menu */
+    .context-menu{position:absolute;background:white;border:1px solid #e6edf3;padding:8px;border-radius:8px;box-shadow:var(--shadow);z-index:70}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="main-col">
+      <h1>Lista de Mercado</h1>
+      <p class="small">Toque/arraste em dispositivos móveis para deletar. Clique no total para salvar em comparação.</p>
+
+      <div class="list" id="list" aria-live="polite"></div>
+
+      <!-- botão + no final da lista -->
+      <div style="display:flex;justify-content:center;margin-top:12px">
+        <button id="add-end" class="btn" aria-label="Adicionar item">+ Adicionar item</button>
+      </div>
+    </div>
+
+    <!-- Desktop right controls (only visible on wide screens) -->
+    <div class="controls-right" id="controlsRight" style="display:none">
+      <button id="add-right" class="icon-btn btn" title="Adicionar item">+</button>
+      <div style="background:var(--card);padding:12px;border-radius:12px;box-shadow:var(--shadow)">
+        <div style="font-size:13px;color:var(--muted)">Total da lista</div>
+        <div id="grandDesktop" class="grand-total" tabindex="0">R$ 0,00</div>
+        <div id="compareDesktop" class="compare-value muted" style="display:none;cursor:pointer;margin-top:6px">Comparação: R$ 0,00</div>
+      </div>
+    </div>
+
+    <!-- mobile sticky footer -->
+    <div class="totals-bottom sticky-footer-hidden" id="totalsMobile" aria-hidden="false">
+      <div class="totals-card">
+        <div class="tooltip" style="margin-right:8px">
+          <div id="grandMobile" class="grand-total" tabindex="0">R$ 0,00</div>
+          <div class="tip">Clique ou arraste para salvar como comparação</div>
+        </div>
+        <div id="compareMobile" class="compare-value" style="display:none">R$ 0,00</div>
+      </div>
+
+      <div class="totals-card">
+        <button id="addBottomLeft" class="icon-btn" title="Adicionar item (rodapé)">+</button>
+      </div>
+    </div>
+
+  </div>
+
+  <template id="item-template">
+    <div class="item" tabindex="0">
+      <div class="left-block">
+        <div class="prod-name" contenteditable="true" aria-label="Nome do produto">Produto</div>
+        <img class="prod-img" src="" alt="imagem do produto" />
+        <input class="unit-input" aria-label="Unidade de medida" placeholder="Ex: 1 Kg" />
+        <input type="file" accept="image/*" class="img-uploader" aria-label="Carregar imagem" style="display:none"/>
+      </div>
+
+      <div class="field">
+        <label class="muted">Unidades</label>
+        <input type="number" min="0" step="1" class="units-input" aria-label="Quantidade de unidades" />
+      </div>
+
+      <div class="field">
+        <label class="muted">Valor unitário (R$)</label>
+        <input type="text" inputmode="decimal" class="price-input money" aria-label="Valor unitário" />
+      </div>
+
+      <div class="item-total" aria-label="Total do item">R$ 0,00</div>
+
+      <!-- hidden delete overlay -->
+      <div class="swipe-delete" aria-hidden="true" style="display:none">X</div>
+    </div>
+  </template>
+
+  <script>
+    /******************************************************************
+     * Lista de Mercado — Vanilla JS funcional (touch + keyboard)
+     * - Arquitetura simples para facilitar adição de persistência depois
+     * - data.json exemplo é carregado no init
+     ******************************************************************/
+
+    // --- Utilitários ---
+    const qs = s => document.querySelector(s);
+    const qsa = s => Array.from(document.querySelectorAll(s));
+
+    const moneyFmt = v => {
+      const n = Number(v) || 0;
+      return n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    const parseMoney = s => {
+      if(s==null || s === '') return 0;
+      // remove anything except digits, comma, dot
+      const cleaned = String(s).replace(/[^0-9,.-]/g,'').replace(',','.');
+      const n = Number(cleaned);
+      return isNaN(n)?0:n;
+    }
+
+    // Color codes (exposed)
+    const COLORS = {accent:'var(--accent)',green:'var(--green)',red:'var(--red)'};
+
+    // --- App state ---
+    const state = {
+      items: [],
+      compareValue: null // number or null
+    }
+
+    // Abstração de persistência (fácil de trocar por localStorage / API)
+    const storage = {
+      save(state){
+        // currently no-op; easy to replace with localStorage.setItem('shopping', JSON.stringify(state))
+      },
+      load(){
+        return null;
+      }
+    }
+
+    // --- DOM refs ---
+    const listEl = qs('#list');
+    const template = qs('#item-template');
+    const addEndBtn = qs('#add-end');
+    const addRightBtn = qs('#add-right');
+    const addBottomLeft = qs('#addBottomLeft');
+    const grandMobile = qs('#grandMobile');
+    const compareMobile = qs('#compareMobile');
+    const grandDesktop = qs('#grandDesktop');
+    const compareDesktop = qs('#compareDesktop');
+    const controlsRight = qs('#controlsRight');
+    const totalsMobile = qs('#totalsMobile');
+
+    // detect desktop vs mobile to show controls
+    const onResize = ()=>{
+      if(window.innerWidth >= 821){
+        controlsRight.style.display='flex';
+        totalsMobile.classList.add('sticky-footer-hidden');
+      } else {
+        controlsRight.style.display='none';
+        totalsMobile.classList.remove('sticky-footer-hidden');
+      }
+    }
+    window.addEventListener('resize', onResize);
+    onResize();
+
+    // --- Core functions ---
+    function recalcItem(item){
+      const units = Number(item.unitsInput.value) || 0;
+      const price = parseMoney(item.priceInput.value);
+      const total = (isFinite(units) && isFinite(price)) ? (units * price) : 0;
+      item.total = total;
+      item.totalEl.textContent = 'R$ ' + moneyFmt(total);
+    }
+
+    function recalcAll(){
+      let sum = 0;
+      state.items.forEach(i=>{ recalcItem(i); sum += i.total || 0 });
+      state.total = sum;
+      updateTotalsUI();
+    }
+
+    function updateTotalsUI(){
+      const formatted = 'R$ ' + moneyFmt(state.total);
+      grandMobile.textContent = formatted;
+      grandDesktop.textContent = formatted;
+
+      // color rules
+      if(state.compareValue == null){
+        grandMobile.style.color = 'var(--accent)';
+        grandDesktop.style.color = 'var(--accent)';
+      } else {
+        if(state.total < state.compareValue){
+          grandMobile.style.color = 'var(--green)';
+          grandDesktop.style.color = 'var(--green)';
+        } else if(state.total > state.compareValue){
+          grandMobile.style.color = 'var(--red)';
+          grandDesktop.style.color = 'var(--red)';
+        } else {
+          grandMobile.style.color = 'var(--accent)';
+          grandDesktop.style.color = 'var(--accent)';
+        }
+      }
+
+      if(state.compareValue != null){
+        const cfmt = 'R$ ' + moneyFmt(state.compareValue);
+        compareMobile.style.display = 'block';
+        compareDesktop.style.display = 'block';
+        compareMobile.textContent = cfmt;
+        compareDesktop.textContent = 'Comparação: ' + cfmt;
+      } else {
+        compareMobile.style.display = 'none';
+        compareDesktop.style.display = 'none';
+      }
+    }
+
+    // --- Create / render items ---
+    function createItem(data){
+      const node = template.content.firstElementChild.cloneNode(true);
+      const img = node.querySelector('.prod-img');
+      const nameEl = node.querySelector('.prod-name');
+      const unitInput = node.querySelector('.unit-input');
+      const uploader = node.querySelector('.img-uploader');
+      const unitsInput = node.querySelector('.units-input');
+      const priceInput = node.querySelector('.price-input');
+      const totalEl = node.querySelector('.item-total');
+      const swipeDelete = node.querySelector('.swipe-delete');
+
+      // initial values
+      nameEl.textContent = data?.nome || '';
+      unitInput.value = data?.unidadeMedida || '';
+      unitsInput.value = data?.unidades ?? '';
+      priceInput.value = (data?.valorUnitario != null) ? moneyFmt(data.valorUnitario) : '';
+      if(data?.imagem) img.src = data.imagem;
+
+      // create object
+      const item = {node, img, nameEl, unitInput, uploader, unitsInput, priceInput, totalEl, swipeDelete, total:0};
+
+      // attach to DOM
+      listEl.appendChild(node);
+
+      // interactions
+      function onInputChange(){
+        // sanitize units
+        if(unitsInput.value !== ''){
+          let v = Number(unitsInput.value);
+          if(isNaN(v) || v < 0){
+            unitsInput.value = '';
+            showInlineError(unitsInput, 'Quantidade inválida');
+          }
+        }
+        // sanitize price formatting
+        const p = parseMoney(priceInput.value);
+        if(priceInput.value !== ''){
+          if(isNaN(p) || p < 0){
+            showInlineError(priceInput, 'Preço inválido');
+          }
+        }
+        recalcAll();
+      }
+
+      nameEl.addEventListener('input', ()=>{ onInputChange(); });
+      unitInput.addEventListener('input', onInputChange);
+      unitsInput.addEventListener('input', onInputChange);
+      priceInput.addEventListener('input', ()=>{
+        // allow typing; format on blur
+        onInputChange();
+      });
+      priceInput.addEventListener('blur', ()=>{
+        if(priceInput.value.trim() !== '') priceInput.value = moneyFmt(parseMoney(priceInput.value));
+        onInputChange();
+      });
+
+      // image uploader
+      img.addEventListener('click', ()=>{ uploader.click(); });
+      uploader.addEventListener('change', ev=>{
+        const f = ev.target.files[0];
+        if(!f) return;
+        const reader = new FileReader();
+        reader.onload = e=>{ img.src = e.target.result; }
+        reader.readAsDataURL(f);
+      });
+
+      // click to show delete option
+      node.addEventListener('click', (ev)=>{
+        // ignore clicks on file input, etc.
+        if(ev.target === swipeDelete) return;
+        showItemContext(node, ()=>deleteItem(item));
+      });
+
+      // keyboard accessibility: delete on context menu via key
+      node.addEventListener('keydown', (ev)=>{
+        if(ev.key === 'Delete') deleteItem(item);
+      });
+
+      // swipe to reveal delete (pointer events)
+      let startX = 0; let curX = 0; let dragging = false;
+      node.addEventListener('pointerdown', (e)=>{
+        node.setPointerCapture(e.pointerId);
+        startX = e.clientX; curX = startX; dragging = true;
+      });
+      node.addEventListener('pointermove', (e)=>{
+        if(!dragging) return;
+        const dx = e.clientX - startX;
+        if(dx < -20){
+          // reveal delete overlay gradually
+          node.style.transform = `translateX(${dx}px)`;
+          swipeDelete.style.display='flex';
+          swipeDelete.setAttribute('aria-hidden','false');
+        }
+        curX = e.clientX;
+      });
+      node.addEventListener('pointerup', (e)=>{
+        if(!dragging) return; dragging=false;
+        const dx = e.clientX - startX;
+        if(dx < -80){
+          // keep revealed
+          node.style.transform = `translateX(-72px)`;
+          swipeDelete.style.display='flex';
+          swipeDelete.setAttribute('aria-hidden','false');
+        } else {
+          node.style.transform = '';
+          swipeDelete.style.display='none';
+          swipeDelete.setAttribute('aria-hidden','true');
+        }
+      });
+
+      // hide X if user edits other fields
+      [nameEl, unitInput, unitsInput, priceInput].forEach(el=>{
+        el.addEventListener('input', ()=>{ node.style.transform=''; swipeDelete.style.display='none'; swipeDelete.setAttribute('aria-hidden','true'); });
+      });
+
+      // clicking X deletes item
+      swipeDelete.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteItem(item); });
+
+      // expose elements
+      item.unitsInput = unitsInput;
+      item.priceInput = priceInput;
+      item.totalEl = totalEl;
+      item.node = node;
+
+      // push to state
+      state.items.push(item);
+
+      // initial calc
+      recalcAll();
+
+      return item;
+    }
+
+    function deleteItem(item){
+      const idx = state.items.indexOf(item);
+      if(idx >= 0){
+        state.items.splice(idx,1);
+        item.node.remove();
+        recalcAll();
+      }
+    }
+
+    // show a small context menu with Excluir option near element
+    function showItemContext(node, onDelete){
+      // create menu
+      const rect = node.getBoundingClientRect();
+      const menu = document.createElement('div');
+      menu.className='context-menu';
+      menu.style.left = (rect.right - 120) + 'px';
+      menu.style.top = (rect.top + window.scrollY + 8) + 'px';
+      menu.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px"><button id='ctxDel' class='btn' style='background:#e74c3c'>Excluir</button></div>`;
+      document.body.appendChild(menu);
+      function cleanup(){ menu.remove(); document.removeEventListener('click', cleanup); }
+      document.getElementById('ctxDel').addEventListener('click', ()=>{ onDelete(); cleanup(); });
+      setTimeout(()=>document.addEventListener('click', cleanup),20);
+    }
+
+    // add new item rule: only add if last item is not fully blank
+    function canAddNew(){
+      if(state.items.length===0) return true;
+      const last = state.items[state.items.length-1];
+      // consider name, image src, unitInput, unitsInput, priceInput
+      const blank = (last.nameEl.textContent.trim()==='' && !last.img.src && last.unitInput.value.trim()==='' && last.unitsInput.value==='');
+      return !blank;
+    }
+
+    function addNewItemAtEnd(data){
+      if(!canAddNew()) return null;
+      const item = createItem(data||{});
+      // scroll into view
+      item.node.scrollIntoView({behavior:'smooth', block:'center'});
+      // focus first editable
+      setTimeout(()=>item.nameEl.focus(),150);
+      return item;
+    }
+
+    // --- Totals interactions: save for comparison ---
+    function saveComparison(){
+      state.compareValue = state.total;
+      updateTotalsUI();
+    }
+    function deleteComparison(){
+      state.compareValue = null;
+      updateTotalsUI();
+    }
+
+    // attach actions to grand totals (click context: save for comparison)
+    function showTotalMenu(el){
+      const menu = document.createElement('div');
+      menu.className='context-menu';
+      const rect = el.getBoundingClientRect();
+      menu.style.left = (rect.left) + 'px';
+      menu.style.top = (rect.top + window.scrollY - 10) + 'px';
+      menu.innerHTML = `<div style='display:flex;flex-direction:column;gap:6px;min-width:160px'>
+         <button id='saveCompare' class='btn'>Salvar para comparação</button>
+         ${state.compareValue!=null?`<button id='replaceCompare' class='btn' style='background:#6b7280'>Substituir comparação</button>`:''}
+         ${state.compareValue!=null?`<button id='delCompare' class='btn' style='background:#e74c3c'>Deletar comparação</button>`:''}
+      </div>`;
+      document.body.appendChild(menu);
+      setTimeout(()=>document.addEventListener('click', cleanup),20);
+      function cleanup(){menu.remove();document.removeEventListener('click', cleanup);}
+      if(qs('#saveCompare')) qs('#saveCompare').addEventListener('click', ()=>{ saveComparison(); cleanup(); });
+      if(qs('#replaceCompare')) qs('#replaceCompare').addEventListener('click', ()=>{ saveComparison(); cleanup(); });
+      if(qs('#delCompare')) qs('#delCompare').addEventListener('click', ()=>{ deleteComparison(); cleanup(); });
+    }
+
+    grandMobile.addEventListener('click', (ev)=>{ showTotalMenu(ev.currentTarget); });
+    grandDesktop.addEventListener('click', (ev)=>{ showTotalMenu(ev.currentTarget); });
+
+    // touch-friendly: dragging total to left triggers save
+    let totalDragStart = null;
+    grandMobile.addEventListener('pointerdown', e=>{ totalDragStart = e.clientX; grandMobile.setPointerCapture(e.pointerId); });
+    grandMobile.addEventListener('pointermove', e=>{
+      if(totalDragStart==null) return;
+      const dx = e.clientX - totalDragStart;
+      if(dx < -60){ // user dragged left enough
+        saveComparison();
+        totalDragStart = null;
+      }
+    });
+    grandMobile.addEventListener('pointerup', e=>{ totalDragStart = null; });
+
+    // clicking compare deletes
+    compareMobile.addEventListener('click', ()=>{
+      // show delete option
+      if(confirm('Deletar valor de comparação?')) deleteComparison();
+    });
+    compareDesktop.addEventListener('click', ()=>{
+      if(confirm('Deletar valor de comparação?')) deleteComparison();
+    });
+
+    // add buttons
+    addEndBtn.addEventListener('click', ()=> addNewItemAtEnd());
+    addBottomLeft.addEventListener('click', ()=>{ window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'}); setTimeout(()=>addNewItemAtEnd(),300); });
+    addRightBtn && addRightBtn.addEventListener('click', ()=> addNewItemAtEnd());
+
+    // helper error UI
+    function showInlineError(el,msg){
+      el.style.borderColor = 'var(--red)';
+      setTimeout(()=>el.style.borderColor='',900);
+      // small aria live
+      const live = document.createElement('div'); live.style.position='absolute'; live.style.left='-9999px'; live.setAttribute('aria-live','assertive'); live.textContent=msg; document.body.appendChild(live);
+      setTimeout(()=>live.remove(),1200);
+    }
+
+    // load sample data.json (from the data included file) — fallback to built-in if cannot fetch
+    async function loadSample(){
+      try{
+        const resp = await fetch('data.json');
+        if(!resp.ok) throw new Error('no data file');
+        const arr = await resp.json();
+        if(Array.isArray(arr)){
+          arr.forEach(it=> createItem(it));
+          return;
+        }
+      }catch(e){
+        // fallback built-in sample
+        const fallback = [
+          { "nome": "Arroz branco", "imagem": "exemplo/arroz.jpg", "unidadeMedida": "5 Kg", "unidades": 2, "valorUnitario": 15.00 },
+          { "nome": "Feijão", "imagem": "exemplo/feijao.jpg", "unidadeMedida": "1 Kg", "unidades": 3, "valorUnitario": 8.50 },
+          { "nome": "Óleo", "imagem": "exemplo/oleo.jpg", "unidadeMedida": "900 ml", "unidades": 1, "valorUnitario": 7.20 }
+        ];
+        fallback.forEach(it=> createItem(it));
+      }
+    }
+
+    // keyboard: Tab order should be natural because of DOM order, ensure contenteditable is focusable
+    // initialization
+    (async ()=>{
+      await loadSample();
+      recalcAll();
+    })();
+
+    // expose for debugging
+    window.appState = state;
+    window.saveComparison = saveComparison;
+    window.deleteComparison = deleteComparison;
+
+  </script>
+</body>
+</html>
